@@ -60,7 +60,7 @@ const RegionSelector: React.FC<RegionSelectorProps> = ({
     // In grid mode, we might not want to clear immediately, let page.tsx handle it based on masterRegion state
     // onRegionChange(null);
     console.log('Mouse Down:', coords);
-  }, [disabled, containerWidth, containerHeight, getCoordinates]); // Added getCoordinates
+  }, [disabled, getCoordinates]); // Removed unnecessary containerWidth/Height
 
   const handleMouseMove = useCallback((event: MouseEvent<HTMLDivElement>) => {
     if (!isDrawing || !startPoint || disabled) return;
@@ -78,7 +78,7 @@ const RegionSelector: React.FC<RegionSelectorProps> = ({
       height: height,
     };
     setCurrentRect(newRect);
-  }, [isDrawing, startPoint, disabled, containerWidth, containerHeight, currentRect?.id, getCoordinates]); // Added getCoordinates
+  }, [isDrawing, startPoint, disabled, currentRect?.id, getCoordinates]); // Removed unnecessary containerWidth/Height
 
   const handleMouseUp = useCallback((event: MouseEvent<HTMLDivElement>) => {
     if (!isDrawing || disabled) return;

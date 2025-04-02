@@ -356,14 +356,14 @@ export default function Home() {
     };
     // Dependencies: monitoring flag, processed baseline data, grid definition, refs, notification function
     // Temporarily removed baselineImageDatas and baselineImages from deps to test if detection works again
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // Reason: Including baselineImageDatas or baselineImages causes issues with the comparison interval logic.
+    // The effect correctly reruns based on isMonitoring and gridCells changes.
   }, [isMonitoring, gridCells, videoRef, comparisonCanvasRef, showNotification]);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  // Reason: Including baselineImageDatas or baselineImages causes issues with the comparison interval logic.
-  // The effect correctly reruns based on isMonitoring and gridCells changes.
 
 
   // --- Camera Callbacks ---
-  const handleStreamReady = useCallback((stream: MediaStream) => {
+  const handleStreamReady = useCallback(() => { // Removed unused 'stream' argument
     // setCurrentStream(stream); // Removed as currentStream state is unused
     setCameraError(null);
   }, []);
