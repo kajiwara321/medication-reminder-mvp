@@ -37,7 +37,7 @@ const CameraPreview: React.FC<CameraPreviewProps> = ({
       }
       console.log('Camera stream stopped.');
     }
-  }, []);
+  }, [videoRef]); // Added videoRef to dependency array
 
   // Get available video devices
   useEffect(() => {
@@ -133,7 +133,7 @@ const CameraPreview: React.FC<CameraPreviewProps> = ({
       // This could potentially stop the stream if the selected device ID changes
       // *before* unmounting, which is handled by stopCurrentStream() in startStream.
     };
-  }, [selectedDeviceId, devices.length, width, height, onStreamReady, onError, stopCurrentStream]);
+  }, [selectedDeviceId, devices.length, width, height, onStreamReady, onError, stopCurrentStream, videoRef]); // Added videoRef to dependency array
 
   const handleDeviceChange = (event: React.ChangeEvent<HTMLSelectElement>) => {
     setSelectedDeviceId(event.target.value);

@@ -11,11 +11,11 @@ interface Region {
   height: number;
 }
 
-// Define the structure for settings stored in localStorage
-interface StoredSettings {
-  selectedRegion: Region | null;
-  baselineImageSrc: string | null; // Store as Base64 data URL
-}
+// Unused interface removed to resolve ESLint error
+// interface StoredSettings {
+//   selectedRegion: Region | null;
+//   baselineImageSrc: string | null; // Store as Base64 data URL
+// }
 
 const REGION_STORAGE_KEY = 'medicationReminder_selectedRegion';
 const BASELINE_IMAGE_STORAGE_KEY = 'medicationReminder_baselineImage';

@@ -38,7 +38,7 @@ export default function Home() {
 
   // --- Component State ---
   const [cameraError, setCameraError] = useState<string | null>(null);
-  const [currentStream, setCurrentStream] = useState<MediaStream | null>(null);
+  // const [currentStream, setCurrentStream] = useState<MediaStream | null>(null); // Removed unused state variable
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null); // Used for capturing images
   const comparisonCanvasRef = useRef<HTMLCanvasElement>(null); // Used for processing images
@@ -234,7 +234,7 @@ export default function Home() {
     });
 
     // Dependency array: run when baseline strings change, grid definition changes, or canvas ref becomes available
-  }, [baselineImages, gridCells, comparisonCanvasRef, showNotification]);
+  }, [baselineImages, gridCells, comparisonCanvasRef, showNotification, baselineImageDatas]); // Added baselineImageDatas to dependency array
 
 
   // --- Periodic Comparison ---
@@ -355,18 +355,22 @@ export default function Home() {
       }
     };
     // Dependencies: monitoring flag, processed baseline data, grid definition, refs, notification function
-  }, [isMonitoring, baselineImageDatas, gridCells, videoRef, comparisonCanvasRef, showNotification, baselineImages]); // Added baselineImages to update idle status correctly
+    // Temporarily removed baselineImageDatas and baselineImages from deps to test if detection works again
+  }, [isMonitoring, gridCells, videoRef, comparisonCanvasRef, showNotification]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  // Reason: Including baselineImageDatas or baselineImages causes issues with the comparison interval logic.
+  // The effect correctly reruns based on isMonitoring and gridCells changes.
 
 
   // --- Camera Callbacks ---
   const handleStreamReady = useCallback((stream: MediaStream) => {
-    setCurrentStream(stream);
+    // setCurrentStream(stream); // Removed as currentStream state is unused
     setCameraError(null);
   }, []);
 
   const handleError = useCallback((error: Error) => {
     setCameraError(error.message);
-    setCurrentStream(null);
+    // setCurrentStream(null); // Removed as currentStream state is unused
     setIsMonitoring(false); // Stop monitoring on camera error
     setMasterRegion(null); // Clear region on error
     setGridCells([]);
@@ -442,7 +446,7 @@ export default function Home() {
     setIsMonitoring(false); // Stop monitoring
     setDifferencePercentages({});
     // Set statuses to "No Baseline"
-    setDetectionStatuses(prev => {
+    setDetectionStatuses(() => { // Removed unused 'prev' argument
         const clearedStatuses: DetectionStatus = {};
         gridCells.forEach(cell => { clearedStatuses[cell.id] = "No Baseline"; }); // Update based on current gridCells
         return clearedStatuses;

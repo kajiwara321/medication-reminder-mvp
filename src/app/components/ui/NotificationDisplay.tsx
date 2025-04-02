@@ -16,7 +16,7 @@ const NotificationDisplay: React.FC<NotificationDisplayProps> = ({
   }
 
   // Basic styling based on type
-  let baseClasses = "p-4 rounded-md text-sm font-medium";
+  const baseClasses = "p-4 rounded-md text-sm font-medium"; // Use const as it's not reassigned
   let typeClasses = "";
 
   switch (type) {
