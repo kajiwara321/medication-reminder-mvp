@@ -188,6 +188,7 @@ export default function Home() {
     Promise.all(promises).then(() => {
       console.log(`Finished processing ${promises.length} baselines. ${processedCount} successful.`);
       setBaselineImageDatas(newBaselineImageDatas); // Update state with processed ImageData
+      console.log("Set baselineImageDatas state:", newBaselineImageDatas); // Log the processed ImageData
 
       // Update detection statuses based on the processing results
       setDetectionStatuses(prev => {
@@ -258,12 +259,19 @@ export default function Home() {
 
         // Process each cell that has a valid baseline
         cellsToMonitor.forEach(cell => {
+          let statusString = ""; // Define statusString at the beginning of the loop
           const baselineData = baselineImageDatas[cell.id]; // Already filtered, should exist
+          let diffPercent: number | null = null; // Define diffPercent here for logging scope
+          const cellLabel = cell.label || `Cell ${cell.id.substring(0, 6)}`; // Define cellLabel here
+
           if (!baselineData) {
             // Safety check, should ideally not happen
-            console.error(`Missing baseline ImageData for cell ${cell.label} during monitoring loop.`);
-            newStatuses[cell.id] = "Error: Baseline data missing";
+            console.error(`Missing baseline ImageData for cell ${cellLabel} during monitoring loop.`);
+            statusString = "Error: Baseline data missing";
+            newStatuses[cell.id] = statusString;
             newDiffs[cell.id] = null;
+            // Log the result for this cell inside the loop
+            console.log(`Cell ${cellLabel}: Diff: N/A, Status: ${statusString}`);
             return; // Skip this cell
           }
 
@@ -272,39 +280,45 @@ export default function Home() {
 
           if (currentImageData) {
             // Compare current image with baseline
-            const diffPercent = compareImageData(baselineData, currentImageData);
+            diffPercent = compareImageData(baselineData, currentImageData); // Assign to loop-scoped variable
             newDiffs[cell.id] = diffPercent >= 0 ? diffPercent : null; // Store percentage or null on error
 
             if (diffPercent >= 0) {
               const changeDetectedNow = diffPercent > DIFF_THRESHOLD;
-              const cellLabel = cell.label || `Cell ${cell.id.substring(0, 6)}`; // Use generated label
+              // cellLabel is already defined above
 
               // Update status based on threshold
               if (changeDetectedNow) {
-                newStatuses[cell.id] = `Change Detected (${diffPercent.toFixed(1)}%)`;
+                statusString = `Change Detected (${diffPercent.toFixed(1)}%)`;
+                newStatuses[cell.id] = statusString;
                 // Trigger notification only when the state changes to detected
                 if (!changeDetectedPreviously[cell.id]) {
                   showNotification(`Change detected in ${cellLabel}!`, "warning");
                 }
                 changeDetectedPreviously[cell.id] = true; // Mark as detected for next interval
               } else {
-                newStatuses[cell.id] = `No Change (${diffPercent.toFixed(1)}%)`;
+                statusString = `No Change (${diffPercent.toFixed(1)}%)`;
+                newStatuses[cell.id] = statusString;
                 // Optional: Notify on return to baseline state
                 // if (changeDetectedPreviously[cell.id]) { showNotification(`${cellLabel} returned to baseline.`, "info"); }
                 changeDetectedPreviously[cell.id] = false; // Mark as not detected
               }
             } else {
               // Comparison function returned an error code
-              newStatuses[cell.id] = "Comparison Error";
+              statusString = "Comparison Error";
+              newStatuses[cell.id] = statusString;
               changeDetectedPreviously[cell.id] = false;
             }
           } else {
             // Failed to capture current image data
-            newStatuses[cell.id] = "Capture Error";
+            statusString = "Capture Error";
+            newStatuses[cell.id] = statusString;
             newDiffs[cell.id] = null;
             changeDetectedPreviously[cell.id] = false;
           }
-        });
+           // Log the result for this cell inside the loop
+           console.log(`Cell ${cellLabel}: Diff: ${diffPercent?.toFixed(1) ?? 'N/A'}%, Status: ${statusString}`);
+        }); // End of cellsToMonitor.forEach
 
         // Batch update states for performance
         setDifferencePercentages(prev => ({ ...prev, ...newDiffs }));
@@ -409,6 +423,7 @@ export default function Home() {
     });
 
     setBaselineImages(newBaselines); // Update state, triggering the processing useEffect
+    console.log("Set baselineImages state with captured Base64 data:", Object.keys(newBaselines).length, "images"); // Log after setting state
     // Notification is handled in the baseline processing useEffect
 
     if (captureErrors > 0) {
@@ -469,10 +484,11 @@ export default function Home() {
       <canvas ref={canvasRef} style={{ display: 'none' }}></canvas>
       <canvas ref={comparisonCanvasRef} style={{ display: 'none' }}></canvas>
 
-      <div className="w-full max-w-4xl bg-white p-6 sm:p-8 rounded-xl shadow-lg flex space-x-6">
+      {/* Further increased max-width and adjusted panel widths */}
+      <div className="w-full max-w-7xl bg-white p-6 sm:p-8 rounded-xl shadow-lg flex space-x-6"> {/* Increased to 7xl, reduced spacing */}
 
          {/* Left Panel: Camera and Controls */}
-         <div className="flex-grow">
+         <div className="w-3/5"> {/* Set specific width for left panel */}
              <h1 className="text-2xl sm:text-3xl font-bold mb-4 text-center text-gray-800">
                  Medication Monitor (Grid Mode)
              </h1>
@@ -499,6 +515,7 @@ export default function Home() {
                          showGrid={!!masterRegion} // Control grid visibility
                          gridRows={GRID_ROWS}
                          gridCols={GRID_COLS}
+                         baselinesAreSet={Object.keys(baselineImages).length > 0} // Pass baseline status
                      />
                  </div>
              </div>
@@ -520,7 +537,7 @@ export default function Home() {
          </div>
 
          {/* Right Panel: Grid Status Display */}
-         <div className="w-1/2 flex flex-col space-y-4"> {/* Adjusted width */}
+         <div className="w-2/5 flex flex-col space-y-4"> {/* Increased width for right panel */}
              <h2 className="text-xl font-semibold border-b pb-2">Grid Cell Status</h2>
              {!isInitialized && <p className="text-gray-500 text-sm">Loading settings...</p>}
              {/* Show message when no master region is defined */}
@@ -532,32 +549,45 @@ export default function Home() {
              {isInitialized && gridCells.length > 0 && (
                  <div className="flex-grow overflow-y-auto border rounded p-2 bg-gray-50 max-h-[calc(100vh-300px)]"> {/* Adjusted max-height */}
                      {/* Dynamically set grid columns based on GRID_COLS */}
-                     <div className={`grid gap-1 grid-cols-${GRID_COLS}`}>
+                     {/* Ensure Tailwind JIT recognizes grid-cols-4 */}
+                     <div className={`grid gap-2 grid-cols-4`}>
                          {gridCells.map((cell) => {
                              const status = detectionStatuses[cell.id] || "Unknown";
                              const diff = differencePercentages[cell.id];
                              const baselineSet = !!baselineImages[cell.id]; // Check if baseline string exists
                              const baselineProcessed = !!baselineImageDatas[cell.id]; // Check if ImageData exists
 
-                             // Determine background color based on status
-                             let bgColor = 'bg-white'; // Default
-                             if (status.includes("Change Detected")) bgColor = 'bg-yellow-200';
-                             else if (status === "No Baseline") bgColor = 'bg-gray-200';
-                             else if (status === "Baseline Error") bgColor = 'bg-red-200';
-                             else if (baselineProcessed) bgColor = 'bg-green-100'; // Green only if baseline processed
-                             else if (baselineSet) bgColor = 'bg-blue-100'; // Blue if set but not processed yet
+                             // Determine background and text color based on status
+                             let bgColor = 'bg-white';
+                             let textColor = 'text-gray-800'; // Default text color for better contrast
+                             if (status.includes("Change Detected")) {
+                                 bgColor = 'bg-yellow-200';
+                                 textColor = 'text-yellow-900';
+                             } else if (status === "No Baseline") {
+                                 bgColor = 'bg-gray-200';
+                                 textColor = 'text-gray-600';
+                             } else if (status === "Baseline Error") {
+                                 bgColor = 'bg-red-200';
+                                 textColor = 'text-red-900';
+                             } else if (baselineProcessed) {
+                                 bgColor = 'bg-green-100';
+                                 textColor = 'text-green-900';
+                             } else if (baselineSet) {
+                                 bgColor = 'bg-blue-100';
+                                 textColor = 'text-blue-900';
+                             }
 
 
                              return (
-                                 <div key={cell.id} className={`p-1 border rounded text-xs ${bgColor} transition-colors duration-200`}>
+                                 <div key={cell.id} className={`p-1.5 border rounded text-xs ${bgColor} ${textColor} transition-colors duration-200 flex flex-col justify-between min-h-[60px]`}> {/* Added padding, flex, min-height and text color */}
                                      <p className="font-semibold truncate" title={cell.label}>{cell.label}</p>
                                      <p>Status: {status}</p>
                                      {/* Show difference only if monitoring and baseline is processed */}
                                      {(isMonitoring && baselineProcessed && diff !== null && diff !== undefined) && <p>Diff: {diff.toFixed(1)}%</p>}
                                      {/* Indicate if baseline is set but not yet processed */}
-                                     {baselineSet && !baselineProcessed && status !== "Baseline Error" && <p className="text-blue-600">Processing...</p>}
+                                     {baselineSet && !baselineProcessed && status !== "Baseline Error" && <p className="text-blue-700 italic">Processing...</p>}
                                      {/* Indicate clearly if no baseline was ever set */}
-                                     {!baselineSet && status === "No Baseline" && <p className="text-gray-500">Not Set</p>}
+                                     {!baselineSet && status === "No Baseline" && <p className="text-gray-500 italic">Not Set</p>}
                                  </div>
                              );
                          })}

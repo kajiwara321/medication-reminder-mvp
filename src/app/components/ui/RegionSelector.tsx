@@ -15,6 +15,7 @@ interface RegionSelectorProps {
   showGrid?: boolean;
   gridRows?: number;
   gridCols?: number;
+  baselinesAreSet?: boolean; // New prop to indicate if baselines are set
 }
 
 const RegionSelector: React.FC<RegionSelectorProps> = ({
@@ -26,6 +27,7 @@ const RegionSelector: React.FC<RegionSelectorProps> = ({
   showGrid = false, // Default to false
   gridRows = 7,    // Default grid size
   gridCols = 4,     // Default grid size
+  baselinesAreSet = false, // Default to false
 }) => {
   const [isDrawing, setIsDrawing] = useState(false);
   const [startPoint, setStartPoint] = useState<{ x: number; y: number } | null>(null);
@@ -163,7 +165,13 @@ const RegionSelector: React.FC<RegionSelectorProps> = ({
       {/* Display the master region (either being drawn or the initial one) */}
       {displayRect && (
         <div
-          className={`absolute border-2 ${isDrawing ? 'border-dashed border-red-500 bg-red-500 bg-opacity-20' : 'border-solid border-blue-500 bg-blue-500 bg-opacity-10'} pointer-events-none`}
+          className={`absolute border-2 pointer-events-none ${
+            isDrawing
+              ? 'border-dashed border-red-500 bg-red-500 bg-opacity-20' // Drawing style
+              : baselinesAreSet
+              ? 'border-solid border-blue-500' // Baselines set: only border
+              : 'border-solid border-blue-500 bg-blue-500 bg-opacity-10' // Initial selection: border + background
+          }`}
           style={{
             left: `${displayRect.x}px`,
             top: `${displayRect.y}px`,
