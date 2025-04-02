@@ -1,13 +1,9 @@
 'use client';
 
 import React, { useState, useRef, useCallback, MouseEvent } from 'react';
+import { Region } from '@/app/lib/types'; // Import the shared Region type
 
-interface Region {
-  x: number;
-  y: number;
-  width: number;
-  height: number;
-}
+// Remove the local Region interface definition
 
 interface RegionSelectorProps {
   onRegionChange: (region: Region | null) => void;
@@ -15,6 +11,10 @@ interface RegionSelectorProps {
   containerHeight: number;
   disabled?: boolean; // Optional prop to disable selection
   initialRegion?: Region | null; // Add prop to display saved region
+  // Props for grid display
+  showGrid?: boolean;
+  gridRows?: number;
+  gridCols?: number;
 }
 
 const RegionSelector: React.FC<RegionSelectorProps> = ({
@@ -23,6 +23,9 @@ const RegionSelector: React.FC<RegionSelectorProps> = ({
   containerHeight,
   disabled = false,
   initialRegion = null, // Default to null
+  showGrid = false, // Default to false
+  gridRows = 7,    // Default grid size
+  gridCols = 4,     // Default grid size
 }) => {
   const [isDrawing, setIsDrawing] = useState(false);
   const [startPoint, setStartPoint] = useState<{ x: number; y: number } | null>(null);
@@ -30,15 +33,14 @@ const RegionSelector: React.FC<RegionSelectorProps> = ({
   const containerRef = useRef<HTMLDivElement>(null);
 
   // Determine the rectangle to display: drawing rect if active, otherwise the initial/saved one
+  // For grid mode, initialRegion represents the master region
   const displayRect = isDrawing ? currentRect : initialRegion;
 
   const getCoordinates = (event: MouseEvent<HTMLDivElement>): { x: number; y: number } => {
     if (!containerRef.current) return { x: 0, y: 0 };
     const rect = containerRef.current.getBoundingClientRect();
-    // Adjust for potential scaling or transforms if necessary, but basic case:
     const x = event.clientX - rect.left;
     const y = event.clientY - rect.top;
-    // Clamp coordinates within the container bounds
     return {
       x: Math.max(0, Math.min(x, containerWidth)),
       y: Math.max(0, Math.min(y, containerHeight)),
@@ -51,10 +53,12 @@ const RegionSelector: React.FC<RegionSelectorProps> = ({
     const coords = getCoordinates(event);
     setIsDrawing(true);
     setStartPoint(coords);
-    setCurrentRect({ ...coords, width: 0, height: 0 }); // Start drawing
-    onRegionChange(null); // Clear previous region when starting new one
+    // Start drawing a new region, assign a temporary ID or handle ID generation onMouseUp
+    setCurrentRect({ id: `drawing-${Date.now()}`, ...coords, width: 0, height: 0 });
+    // In grid mode, we might not want to clear immediately, let page.tsx handle it based on masterRegion state
+    // onRegionChange(null);
     console.log('Mouse Down:', coords);
-  }, [disabled, onRegionChange, containerWidth, containerHeight]); // Added dependencies
+  }, [disabled, containerWidth, containerHeight]); // Removed onRegionChange dependency for now
 
   const handleMouseMove = useCallback((event: MouseEvent<HTMLDivElement>) => {
     if (!isDrawing || !startPoint || disabled) return;
@@ -62,52 +66,101 @@ const RegionSelector: React.FC<RegionSelectorProps> = ({
     const currentCoords = getCoordinates(event);
     const width = Math.abs(currentCoords.x - startPoint.x);
     const height = Math.abs(currentCoords.y - startPoint.y);
+    // Keep the temporary ID during drawing
+    const tempId = currentRect?.id || `drawing-${Date.now()}`;
     const newRect: Region = {
+      id: tempId,
       x: Math.min(startPoint.x, currentCoords.x),
       y: Math.min(startPoint.y, currentCoords.y),
       width: width,
       height: height,
     };
     setCurrentRect(newRect);
-    // Optionally call onRegionChange during move, or wait until mouse up
-    // console.log('Mouse Move - Rect:', newRect);
-  }, [isDrawing, startPoint, disabled, containerWidth, containerHeight]); // Added dependencies
+  }, [isDrawing, startPoint, disabled, containerWidth, containerHeight, currentRect?.id]); // Added currentRect?.id
 
   const handleMouseUp = useCallback((event: MouseEvent<HTMLDivElement>) => {
     if (!isDrawing || disabled) return;
     event.preventDefault();
     setIsDrawing(false);
     setStartPoint(null);
-    if (currentRect && (currentRect.width > 5 && currentRect.height > 5)) { // Minimum size threshold
-      console.log('Mouse Up - Final Rect:', currentRect);
-      onRegionChange(currentRect);
+    if (currentRect && (currentRect.width > 10 && currentRect.height > 10)) { // Increased minimum size
+      console.log('Mouse Up - Final Master Rect:', currentRect);
+      // Generate a stable ID if needed, or let the parent handle it
+      const finalRegion = { ...currentRect, id: initialRegion?.id || `master-${Date.now()}` }; // Reuse existing ID or create new
+      onRegionChange(finalRegion); // Pass the completed region
+      setCurrentRect(null); // Clear drawing rect
     } else {
-      // If the rectangle is too small, consider it a click and clear the selection
       console.log('Mouse Up - Rect too small, clearing.');
       setCurrentRect(null);
-      onRegionChange(null);
+      onRegionChange(null); // Clear selection if too small
     }
-  }, [isDrawing, disabled, currentRect, onRegionChange]);
+  }, [isDrawing, disabled, currentRect, onRegionChange, initialRegion?.id]); // Added initialRegion?.id
 
   const handleMouseLeave = useCallback((event: MouseEvent<HTMLDivElement>) => {
-    // If drawing and mouse leaves container, finalize the drawing
     if (isDrawing) {
         handleMouseUp(event);
     }
   }, [isDrawing, handleMouseUp]);
+
+  // --- Grid Drawing Logic ---
+  const renderGridLines = () => {
+    if (!showGrid || !initialRegion || gridRows <= 0 || gridCols <= 0) {
+      return null;
+    }
+
+    const lines = [];
+    const cellWidth = initialRegion.width / gridCols;
+    const cellHeight = initialRegion.height / gridRows;
+
+    // Vertical lines
+    for (let i = 1; i < gridCols; i++) {
+      const x = initialRegion.x + i * cellWidth;
+      lines.push(
+        <div
+          key={`v-${i}`}
+          className="absolute border-l border-dashed border-green-500 pointer-events-none"
+          style={{
+            left: `${x}px`,
+            top: `${initialRegion.y}px`,
+            width: '1px',
+            height: `${initialRegion.height}px`,
+          }}
+        />
+      );
+    }
+
+    // Horizontal lines
+    for (let i = 1; i < gridRows; i++) {
+      const y = initialRegion.y + i * cellHeight;
+      lines.push(
+        <div
+          key={`h-${i}`}
+          className="absolute border-t border-dashed border-green-500 pointer-events-none"
+          style={{
+            left: `${initialRegion.x}px`,
+            top: `${y}px`,
+            width: `${initialRegion.width}px`,
+            height: '1px',
+          }}
+        />
+      );
+    }
+
+    return lines;
+  };
 
 
   return (
     <div
       ref={containerRef}
       className="absolute top-0 left-0 cursor-crosshair"
-      style={{ width: `${containerWidth}px`, height: `${containerHeight}px`, touchAction: 'none' }} // touchAction for mobile potentially
+      style={{ width: `${containerWidth}px`, height: `${containerHeight}px`, touchAction: 'none' }}
       onMouseDown={handleMouseDown}
       onMouseMove={handleMouseMove}
       onMouseUp={handleMouseUp}
-      onMouseLeave={handleMouseLeave} // Handle mouse leaving the area while drawing
+      onMouseLeave={handleMouseLeave}
     >
-      {/* Display either the drawing rectangle or the initial/saved one */}
+      {/* Display the master region (either being drawn or the initial one) */}
       {displayRect && (
         <div
           className={`absolute border-2 ${isDrawing ? 'border-dashed border-red-500 bg-red-500 bg-opacity-20' : 'border-solid border-blue-500 bg-blue-500 bg-opacity-10'} pointer-events-none`}
@@ -119,6 +172,8 @@ const RegionSelector: React.FC<RegionSelectorProps> = ({
           }}
         />
       )}
+      {/* Render grid lines if enabled and master region exists */}
+      {renderGridLines()}
     </div>
   );
 };
