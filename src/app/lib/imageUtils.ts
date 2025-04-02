@@ -30,8 +30,11 @@ export const captureRegionImageData = (
   }
 
   const canvas = canvasElement || document.createElement('canvas');
-  canvas.width = region.width;
-  canvas.height = region.height;
+  // Ensure integer dimensions for the canvas
+  const canvasWidth = Math.max(1, Math.round(region.width));
+  const canvasHeight = Math.max(1, Math.round(region.height));
+  canvas.width = canvasWidth;
+  canvas.height = canvasHeight;
   const ctx = canvas.getContext('2d', { willReadFrequently: true }); // Optimize for frequent reads
 
   if (!ctx) {
@@ -47,21 +50,21 @@ export const captureRegionImageData = (
     // Clear the canvas before drawing
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    // Draw the selected region of the video onto the canvas
+    // Draw the selected region of the video onto the canvas using integer dimensions
     ctx.drawImage(
       videoElement,
       sourceX, // source x (adjusted for mirror)
       sourceY, // source y
-      region.width, // source width
-      region.height, // source height
+      canvasWidth, // source width (use rounded canvas dimension)
+      canvasHeight, // source height (use rounded canvas dimension)
       0, // destination x
       0, // destination y
-      region.width, // destination width
-      region.height // destination height
+      canvasWidth, // destination width
+      canvasHeight // destination height
     );
 
-    // Get the ImageData from the canvas
-    return ctx.getImageData(0, 0, region.width, region.height);
+    // Get the ImageData from the canvas using integer dimensions
+    return ctx.getImageData(0, 0, canvasWidth, canvasHeight);
   } catch (error) {
     console.error("Error capturing image data from video region:", error);
     return null;

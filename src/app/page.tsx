@@ -1,7 +1,8 @@
 'use client';
 
 import React, { useState, useRef, useCallback, useEffect } from 'react';
-import CameraPreview from '@/app/components/ui/CameraPreview';
+import dynamic from 'next/dynamic'; // Import dynamic
+// import CameraPreview from '@/app/components/ui/CameraPreview'; // Remove static import
 import RegionSelector from '@/app/components/ui/RegionSelector';
 import NotificationDisplay from '@/app/components/ui/NotificationDisplay';
 // Import types and hook (useSettings will be adapted later)
@@ -18,6 +19,12 @@ const COMPARISON_INTERVAL = 1000; // Compare every 1 second
 const DIFF_THRESHOLD = 10; // 10% difference threshold
 const GRID_ROWS = 7;
 const GRID_COLS = 4;
+
+// Dynamically import CameraPreview with SSR disabled
+const CameraPreview = dynamic(() => import('@/app/components/ui/CameraPreview'), {
+  ssr: false,
+  loading: () => <div className="w-[640px] h-[480px] bg-gray-200 flex items-center justify-center text-gray-500">Loading Camera...</div>, // Optional loading state
+});
 
 export default function Home() {
   // --- Settings Hook (will be adapted later) ---
@@ -380,18 +387,18 @@ export default function Home() {
 
     gridCells.forEach(cell => {
       try {
-        // Adjust canvas size for each cell
-        // Ensure width and height are positive integers
+        // Adjust canvas size for each cell, ensuring integer dimensions
         const cellWidthInt = Math.max(1, Math.round(cell.width));
         const cellHeightInt = Math.max(1, Math.round(cell.height));
-        canvas.width = cellWidthInt;
-        canvas.height = cellHeightInt;
+        canvas.width = cellWidthInt; // Use rounded integer
+        canvas.height = cellHeightInt; // Use rounded integer
 
         // Calculate source x based on video width (assuming non-mirrored preview)
         // Ensure coordinates are within video bounds
         const sourceX = Math.max(0, Math.min(video.videoWidth - cellWidthInt, Math.round(video.videoWidth - cell.x - cell.width)));
         const sourceY = Math.max(0, Math.min(video.videoHeight - cellHeightInt, Math.round(cell.y)));
 
+        // Use rounded integer dimensions for drawing
         ctx.drawImage(video, sourceX, sourceY, cellWidthInt, cellHeightInt, 0, 0, cellWidthInt, cellHeightInt);
         newBaselines[cell.id] = canvas.toDataURL('image/png');
       } catch (error) {
